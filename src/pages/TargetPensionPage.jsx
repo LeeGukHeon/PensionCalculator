@@ -317,90 +317,126 @@ const TargetPensionPage = () => {
                 </div>
               </div>
 
-              {/* 연령 컨트롤러 */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-2 rounded-lg border border-slate-200">
-                  <div className="flex items-center gap-2 pl-2">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                      <User size={16} />
+              {/* 연령 컨트롤러 (슬라이더 추가 버전) */}
+              <div className="space-y-4">
+                {/* 현재 나이 */}
+                <div className="p-3 rounded-lg border border-slate-200 bg-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 pl-2">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                        <User size={16} />
+                      </div>
+                      <span className="text-sm font-bold text-slate-600 whitespace-nowrap">
+                        현재 나이
+                      </span>
                     </div>
-                    <span className="text-sm font-bold text-slate-600 whitespace-nowrap">
-                      현재 나이
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleStepper("currentAge", -1)}
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="w-12 text-center font-bold text-slate-800 whitespace-nowrap">
+                        {inputs.currentAge}세
+                      </span>
+                      <button
+                        onClick={() => handleStepper("currentAge", 1)}
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => handleStepper("currentAge", -1)}
-                      className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span className="w-12 text-center font-bold text-slate-800 whitespace-nowrap">
-                      {inputs.currentAge}세
-                    </span>
-                    <button
-                      onClick={() => handleStepper("currentAge", 1)}
-                      className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
+                  <input
+                    type="range"
+                    name="currentAge"
+                    min="20"
+                    max="80"
+                    value={inputs.currentAge}
+                    onChange={handleChange}
+                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-500"
+                  />
                 </div>
 
-                <div className="flex items-center justify-between p-2 rounded-lg border border-blue-100 bg-blue-50/50">
-                  <div className="flex items-center gap-2 pl-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                      <Briefcase size={16} />
+                {/* 은퇴 나이 */}
+                <div className="p-3 rounded-lg border border-blue-100 bg-blue-50/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 pl-2">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                        <Briefcase size={16} />
+                      </div>
+                      <span className="text-sm font-bold text-blue-700 whitespace-nowrap">
+                        은퇴 나이
+                      </span>
                     </div>
-                    <span className="text-sm font-bold text-blue-700 whitespace-nowrap">
-                      은퇴 나이
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleStepper("retireAge", -1)}
+                        className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="w-12 text-center font-bold text-blue-700 whitespace-nowrap">
+                        {inputs.retireAge}세
+                      </span>
+                      <button
+                        onClick={() => handleStepper("retireAge", 1)}
+                        className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => handleStepper("retireAge", -1)}
-                      className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span className="w-12 text-center font-bold text-blue-700 whitespace-nowrap">
-                      {inputs.retireAge}세
-                    </span>
-                    <button
-                      onClick={() => handleStepper("retireAge", 1)}
-                      className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
+                  <input
+                    type="range"
+                    name="retireAge"
+                    min="40"
+                    max="90"
+                    value={inputs.retireAge}
+                    onChange={handleChange}
+                    className="w-full h-1.5 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
                 </div>
 
-                <div className="flex items-center justify-between p-2 rounded-lg border border-orange-100 bg-orange-50/50">
-                  <div className="flex items-center gap-2 pl-2">
-                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-500">
-                      <Sunset size={16} />
+                {/* 기대 수명 */}
+                <div className="p-3 rounded-lg border border-orange-100 bg-orange-50/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 pl-2">
+                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-500">
+                        <Sunset size={16} />
+                      </div>
+                      <span className="text-sm font-bold text-orange-700 whitespace-nowrap">
+                        기대 수명
+                      </span>
                     </div>
-                    <span className="text-sm font-bold text-orange-700 whitespace-nowrap">
-                      기대 수명
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleStepper("deathAge", -1)}
+                        className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-100 rounded-full transition-colors"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="w-12 text-center font-bold text-orange-700 whitespace-nowrap">
+                        {inputs.deathAge}세
+                      </span>
+                      <button
+                        onClick={() => handleStepper("deathAge", 1)}
+                        className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-100 rounded-full transition-colors"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => handleStepper("deathAge", -1)}
-                      className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-100 rounded-full transition-colors"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span className="w-12 text-center font-bold text-orange-700 whitespace-nowrap">
-                      {inputs.deathAge}세
-                    </span>
-                    <button
-                      onClick={() => handleStepper("deathAge", 1)}
-                      className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-100 rounded-full transition-colors"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
+                  <input
+                    type="range"
+                    name="deathAge"
+                    min="70"
+                    max="120"
+                    value={inputs.deathAge}
+                    onChange={handleChange}
+                    className="w-full h-1.5 bg-orange-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
                 </div>
               </div>
 
