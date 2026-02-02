@@ -25,7 +25,7 @@ import {
   AlertTriangle,
   ChevronRight,
 } from "lucide-react";
-import AdSense from "./components/AdSense";
+import AdSense from "../components/Adsense";
 // [Component] 원화 아이콘
 const WonSign = ({ size = 16, className = "" }) => (
   <svg
