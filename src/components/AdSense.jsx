@@ -8,7 +8,7 @@ function AdSense({ slot, format = "auto", style = {}, label = "광고" }) {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
       }
     } catch (e) {
-      console.error("AdSense error", e);
+      console.error("AdSense error", e); //
     }
   }, []);
 
