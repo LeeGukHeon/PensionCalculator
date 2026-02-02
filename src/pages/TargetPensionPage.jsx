@@ -29,7 +29,7 @@ import {
   Briefcase,
   Sunset,
 } from "lucide-react";
-import AdSense from "./components/AdSense";
+import AdSense from "../components/Adsense";
 // [Custom Icon] 원화 아이콘
 const WonSign = ({ size = 16, className = "" }) => (
   <svg
