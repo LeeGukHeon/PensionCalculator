@@ -25,7 +25,7 @@ import {
   AlertTriangle,
   ChevronRight,
 } from "lucide-react";
-
+import AdSense from "../components/common/AdSense"; // 광고 컴포넌트 추가
 // [Component] 원화 아이콘
 const WonSign = ({ size = 16, className = "" }) => (
   <svg
@@ -486,9 +486,11 @@ const BasicPensionPage = () => {
             </div>
           </div>
 
-          <div className="bg-slate-100 rounded-lg h-24 flex items-center justify-center text-slate-400 text-sm border-2 border-dashed border-slate-200">
-            Google AdSense (In-Feed)
-          </div>
+          <AdSense
+            slot="3924893287"
+            label="Main Top Banner"
+            style={{ marginBottom: "3rem" }}
+          />
         </div>
 
         {/* Right: Result Display */}
@@ -755,7 +757,11 @@ const BasicPensionPage = () => {
             </div>
           )}
           <div className="mt-6 bg-slate-100 rounded-lg h-32 flex items-center justify-center text-slate-400 text-sm border-2 border-dashed border-slate-200">
-            Google AdSense (Banner)
+            <AdSense
+              slot="5561370591"
+              label="Main Top Banner"
+              style={{ marginBottom: "3rem" }}
+            />
           </div>
         </div>
       </div>

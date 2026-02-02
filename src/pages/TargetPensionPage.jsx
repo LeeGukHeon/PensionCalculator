@@ -29,7 +29,7 @@ import {
   Briefcase,
   Sunset,
 } from "lucide-react";
-
+import AdSense from "../components/common/AdSense"; // 광고 컴포넌트 추가
 // [Custom Icon] 원화 아이콘
 const WonSign = ({ size = 16, className = "" }) => (
   <svg
@@ -581,7 +581,11 @@ const TargetPensionPage = () => {
             </div>
           </div>
           <div className="bg-slate-100 rounded-lg h-24 flex items-center justify-center text-slate-400 text-sm border-2 border-dashed border-slate-200">
-            Google AdSense (Responsive)
+            <AdSense
+              slot="1430553892"
+              label="Main Top Banner"
+              style={{ marginBottom: "3rem" }}
+            />
           </div>
         </div>
 
@@ -821,9 +825,11 @@ const TargetPensionPage = () => {
               </p>
             </div>
           )}
-          <div className="mt-6 bg-slate-100 rounded-lg h-32 flex items-center justify-center text-slate-400 text-sm border-2 border-dashed border-slate-200">
-            Google AdSense (Banner)
-          </div>
+          <AdSense
+            slot="2372100479"
+            label="Main Top Banner"
+            style={{ marginBottom: "3rem" }}
+          />
         </div>
       </div>
     </div>
