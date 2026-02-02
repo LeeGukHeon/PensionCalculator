@@ -38,7 +38,7 @@ function AdSense({ slot, format = "auto", style = {}, label = "광고" }) {
         <ins
           className="adsbygoogle"
           style={{ display: "block", ...style }}
-          data-ad-client="ca-pub-4285543298552704" /* 본인의 게시자 ID로 교체 필수 */
+          data-ad-client="ca-pub-4285543298552704" /* 본인의 게시자 ID로 교체 필수 파일명 변경*/
           data-ad-slot={slot}
           data-ad-format={format}
           data-full-width-responsive="true"
