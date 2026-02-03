@@ -37,6 +37,7 @@ import {
   Check,
 } from "lucide-react";
 import AdSense from "../components/AdSense";
+
 // [Custom Icon] 원화 아이콘
 const WonSign = ({ size = 16, className = "" }) => (
   <svg
@@ -68,7 +69,7 @@ ChartJS.register(
 
 const NationalPensionPage = () => {
   const [inputs, setInputs] = useState({
-    birthDate: "1998-01-05",
+    birthDate: "",
     startYear: 2024,
     startMonth: 1,
     retireAge: 60,
@@ -86,8 +87,39 @@ const NationalPensionPage = () => {
     postRetireIncome: 0,
   });
 
+  // [NEW] 화면 표시용 생년월일 (8자리 숫자) 상태 관리
+  const [displayBirth, setDisplayBirth] = useState(
+    inputs.birthDate.replace(/-/g, ""),
+  );
+
   const [result, setResult] = useState(null);
   const [showTax, setShowTax] = useState(false);
+
+  // [NEW] 생년월일 전용 핸들러 (8자리 숫자 입력 -> YYYY-MM-DD 자동 변환)
+  const handleBirthDateChange = (e) => {
+    const value = e.target.value.replace(/[^0-9]/g, "");
+    if (value.length > 8) return;
+
+    setDisplayBirth(value);
+
+    if (value.length === 8) {
+      const year = value.substring(0, 4);
+      const month = value.substring(4, 6);
+      const day = value.substring(6, 8);
+
+      const dateObj = new Date(year, month - 1, day);
+      if (
+        dateObj.getFullYear() === parseInt(year) &&
+        dateObj.getMonth() === parseInt(month) - 1 &&
+        dateObj.getDate() === parseInt(day)
+      ) {
+        setInputs((prev) => ({
+          ...prev,
+          birthDate: `${year}-${month}-${day}`,
+        }));
+      }
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -152,8 +184,8 @@ const NationalPensionPage = () => {
   };
 
   const handleCalculate = () => {
-    if (!inputs.birthDate) {
-      alert("생년월일을 입력해주세요.");
+    if (!inputs.birthDate || displayBirth.length !== 8) {
+      alert("생년월일 8자리를 정확히 입력해주세요. (예: 19980105)");
       return;
     }
 
@@ -193,27 +225,29 @@ const NationalPensionPage = () => {
       monthlyIncrease = pension.monthly - baseResult.monthly;
     }
 
+    // [FIX] 모든 계산값에 || 0 을 추가하여 undefined 에러 방지 (안전장치)
     setResult({
-      periodYear: Math.floor(pension.totalPaidMonths / 12),
-      periodMonth: pension.totalPaidMonths % 12,
+      periodYear: Math.floor(pension.totalPaidMonths / 12) || 0,
+      periodMonth: pension.totalPaidMonths % 12 || 0,
       startYear: periodData.retireYear + (receiptAge - inputs.retireAge),
       currentAge: periodData.currentAge,
-      avgIncome: pension.avgMonthlyIncome,
-      creditAmount: pension.creditAmount,
-      earningsCutAmount: pension.earningsCutAmount,
-      dependentAddOn: pension.dependentAddOn,
-      paybackCost: pension.totalPaybackCost,
-      paybackMonths: pension.totalPaybackMonths,
-      monthlyIncrease: monthlyIncrease,
+      avgIncome: pension.avgMonthlyIncome || 0,
+      creditAmount: pension.creditAmount || 0,
+      earningsCutAmount: pension.earningsCutAmount || 0,
+      dependentAddOn: pension.dependentAddOn || 0,
+      paybackCost: pension.totalPaybackCost || 0,
+      paybackMonths: pension.totalPaybackMonths || 0,
+      monthlyIncrease: monthlyIncrease || 0,
       currentValue: {
-        monthly: pension.monthly,
-        monthlyAfterTax: pension.monthly - monthlyTax,
-        tax: monthlyTax,
+        monthly: pension.monthly || 0,
+        monthlyAfterTax: pension.monthly - monthlyTax || 0,
+        tax: monthlyTax || 0,
       },
       futureValue: {
-        monthly: futureMonthly,
+        monthly: futureMonthly || 0,
         monthlyAfterTax:
-          futureMonthly - calculateFutureValue(monthlyTax, yearsUntilReceipt),
+          futureMonthly - calculateFutureValue(monthlyTax, yearsUntilReceipt) ||
+          0,
       },
     });
   };
@@ -259,18 +293,33 @@ const NationalPensionPage = () => {
             </h3>
 
             <div className="space-y-6">
-              {/* 기본 정보 */}
+              {/* 생년월일: 8자리 숫자 입력 방식 */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1">
-                  <Calendar size={16} /> 생년월일
+                  <Calendar size={16} /> 생년월일 (8자리)
                 </label>
-                <input
-                  type="date"
-                  name="birthDate"
-                  value={inputs.birthDate}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-slate-300 rounded-lg outline-none bg-white focus:ring-2 focus:ring-primary-500 transition-all"
-                />
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={displayBirth}
+                    onChange={handleBirthDateChange}
+                    placeholder="예: 19640501"
+                    maxLength={8}
+                    className={`w-full p-3 pl-4 border rounded-lg outline-none text-lg font-bold tracking-widest transition-all ${
+                      displayBirth.length === 8
+                        ? "border-primary-500 ring-2 ring-primary-100 bg-white"
+                        : "border-slate-300 bg-slate-50"
+                    }`}
+                  />
+                  {displayBirth.length === 8 && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-primary-600">
+                      <CheckCircle size={20} />
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-1 pl-1">
+                  * 숫자만 입력하세요 (예: 1960년 1월 1일 → 19600101)
+                </p>
               </div>
 
               <div>
@@ -863,7 +912,8 @@ const NationalPensionPage = () => {
                       생애 평균 소득(B값)
                     </p>
                     <p className="font-bold text-slate-800">
-                      {result.avgIncome.toLocaleString()}원
+                      {/* [SAFE] 안전하게 0으로 처리 */}
+                      {(result.avgIncome || 0).toLocaleString()}원
                     </p>
                   </div>
                   <div>
@@ -879,8 +929,8 @@ const NationalPensionPage = () => {
                     <p className="font-bold text-primary-600">
                       연 +
                       {(
-                        result.creditAmount * 12 +
-                        result.dependentAddOn
+                        (result.creditAmount || 0) * 12 +
+                        (result.dependentAddOn || 0)
                       ).toLocaleString()}
                       원
                     </p>
@@ -889,7 +939,7 @@ const NationalPensionPage = () => {
                     <p className="text-xs text-slate-500 mb-1">재직자 감액</p>
                     {result.earningsCutAmount > 0 ? (
                       <p className="font-bold text-red-500">
-                        월 -{result.earningsCutAmount.toLocaleString()}원
+                        월 -{(result.earningsCutAmount || 0).toLocaleString()}원
                       </p>
                     ) : (
                       <p className="font-bold text-green-600">
@@ -911,7 +961,7 @@ const NationalPensionPage = () => {
                           총 투자 비용
                         </p>
                         <p className="font-bold text-indigo-900">
-                          {result.paybackCost.toLocaleString()}원
+                          {(result.paybackCost || 0).toLocaleString()}원
                         </p>
                       </div>
                       <div>
@@ -919,15 +969,15 @@ const NationalPensionPage = () => {
                           월 수령액 증가
                         </p>
                         <p className="font-bold text-indigo-900">
-                          +{result.monthlyIncrease.toLocaleString()}원
+                          +{(result.monthlyIncrease || 0).toLocaleString()}원
                         </p>
                       </div>
                       <div className="col-span-2 text-xs text-indigo-700 mt-1 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm leading-relaxed">
                         💡{" "}
                         <strong>
                           {(
-                            result.paybackCost /
-                            result.monthlyIncrease /
+                            (result.paybackCost || 0) /
+                            (result.monthlyIncrease || 1) / // 0으로 나누기 방지
                             12
                           ).toFixed(1)}
                           년
@@ -977,8 +1027,8 @@ const NationalPensionPage = () => {
                     {result.earningsCutAmount > 0 ? (
                       <span>
                         ⚠️ 은퇴 후 소득(약{" "}
-                        {inputs.postRetireIncome.toLocaleString()}만원)으로 인해
-                        재직자 감액이 발생하고 있습니다.{" "}
+                        {(inputs.postRetireIncome || 0).toLocaleString()}
+                        만원)으로 인해 재직자 감액이 발생하고 있습니다.{" "}
                         <span className="text-yellow-400 font-bold underline cursor-pointer">
                           연기연금
                         </span>{" "}
