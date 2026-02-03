@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -35,6 +35,9 @@ import {
   Plus,
   Minus,
   Check,
+  Search,
+  ArrowRight,
+  ChevronDown,
 } from "lucide-react";
 import AdSense from "../components/AdSense";
 
@@ -67,14 +70,162 @@ ChartJS.register(
   Legend,
 );
 
+// [NEW] 예쁜 스크롤 피커 컴포넌트
+const DateScrollPicker = ({ year, month, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const yearRef = useRef(null);
+  const monthRef = useRef(null);
+
+  // 연도 범위: 1988(국민연금 시작) ~ 현재
+  const currentYear = new Date().getFullYear();
+  const years = Array.from(
+    { length: currentYear - 1988 + 2 },
+    (_, i) => currentYear + 1 - i,
+  ); // 내림차순 (최신순)
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  // 피커가 열릴 때 현재 선택된 위치로 자동 스크롤
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        if (yearRef.current) {
+          const selectedYearEl = yearRef.current.querySelector(
+            `[data-value="${year}"]`,
+          );
+          if (selectedYearEl) {
+            selectedYearEl.scrollIntoView({
+              block: "center",
+              behavior: "smooth",
+            });
+          }
+        }
+        if (monthRef.current) {
+          const selectedMonthEl = monthRef.current.querySelector(
+            `[data-value="${month}"]`,
+          );
+          if (selectedMonthEl) {
+            selectedMonthEl.scrollIntoView({
+              block: "center",
+              behavior: "smooth",
+            });
+          }
+        }
+      }, 100);
+    }
+  }, [isOpen, year, month]);
+
+  return (
+    <div className="relative w-full">
+      {/* Trigger Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full p-3 flex items-center justify-between border rounded-lg bg-white transition-all ${
+          isOpen ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-300"
+        }`}
+      >
+        <span className="font-bold text-slate-700 text-lg">
+          {year}년 {month}월
+        </span>
+        <ChevronDown
+          size={20}
+          className={`text-slate-400 transition-transform duration-300 ${
+            isOpen ? "rotate-180 text-blue-500" : ""
+          }`}
+        />
+      </button>
+
+      {/* Dropdown Scroll Area */}
+      {isOpen && (
+        <div className="absolute top-full left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in-up">
+          <div className="grid grid-cols-2 h-56 divide-x divide-slate-100">
+            {/* Year Column */}
+            <div
+              ref={yearRef}
+              className="overflow-y-auto p-2 space-y-1 scrollbar-hide"
+            >
+              <div className="text-xs font-bold text-slate-400 text-center mb-2 sticky top-0 bg-white py-1">
+                연도
+              </div>
+              {years.map((y) => (
+                <div
+                  key={y}
+                  data-value={y}
+                  onClick={() => onChange(y, month)}
+                  className={`p-2 text-center text-sm rounded-lg cursor-pointer transition-all ${
+                    y === year
+                      ? "bg-blue-600 text-white font-bold scale-105"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {y}년
+                </div>
+              ))}
+            </div>
+
+            {/* Month Column */}
+            <div
+              ref={monthRef}
+              className="overflow-y-auto p-2 space-y-1 scrollbar-hide"
+            >
+              <div className="text-xs font-bold text-slate-400 text-center mb-2 sticky top-0 bg-white py-1">
+                월
+              </div>
+              {months.map((m) => (
+                <div
+                  key={m}
+                  data-value={m}
+                  onClick={() => {
+                    onChange(year, m);
+                    setIsOpen(false); // 월 선택시 닫힘 (UX 편의성)
+                  }}
+                  className={`p-2 text-center text-sm rounded-lg cursor-pointer transition-all ${
+                    m === month
+                      ? "bg-blue-600 text-white font-bold scale-105"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {m}월
+                </div>
+              ))}
+            </div>
+          </div>
+          <div
+            className="bg-slate-50 p-2 border-t border-slate-100 text-center cursor-pointer hover:bg-slate-100 transition-colors"
+            onClick={() => setIsOpen(false)}
+          >
+            <span className="text-xs font-bold text-blue-600">닫기</span>
+          </div>
+        </div>
+      )}
+
+      {/* Backdrop to close when clicking outside */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-transparent"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </div>
+  );
+};
+
 const NationalPensionPage = () => {
+  // [NEW] 입력 모드 상태 (simple: 간편추정, precise: 실측입력)
+  const [inputMode, setInputMode] = useState("simple");
+
   const [inputs, setInputs] = useState({
     birthDate: "",
+    // [Simple Mode]
     startYear: 2024,
     startMonth: 1,
+    initialSalary: 0,
+    // [Precise Mode]
+    totalPaidMonths: 0, // 공단 데이터: 총 가입기간
+    averageMonthlyIncome: 0, // 공단 데이터: B값 (가입기간 중 기준소득월액 평균)
+
+    // [Common]
     retireAge: 60,
-    monthlyIncome: 300,
-    initialSalary: 250,
+    monthlyIncome: 0, // 현재 월 소득 (미래 예측용 Base)
     wageGrowthRate: 3.0,
     excludedPeriods: [],
     hasMilitary: false,
@@ -87,26 +238,21 @@ const NationalPensionPage = () => {
     postRetireIncome: 0,
   });
 
-  // [NEW] 화면 표시용 생년월일 (8자리 숫자) 상태 관리
   const [displayBirth, setDisplayBirth] = useState(
     inputs.birthDate.replace(/-/g, ""),
   );
-
   const [result, setResult] = useState(null);
   const [showTax, setShowTax] = useState(false);
 
-  // [NEW] 생년월일 전용 핸들러 (8자리 숫자 입력 -> YYYY-MM-DD 자동 변환)
+  // 생년월일 핸들러
   const handleBirthDateChange = (e) => {
     const value = e.target.value.replace(/[^0-9]/g, "");
     if (value.length > 8) return;
-
     setDisplayBirth(value);
-
     if (value.length === 8) {
       const year = value.substring(0, 4);
       const month = value.substring(4, 6);
       const day = value.substring(6, 8);
-
       const dateObj = new Date(year, month - 1, day);
       if (
         dateObj.getFullYear() === parseInt(year) &&
@@ -134,6 +280,7 @@ const NationalPensionPage = () => {
       };
       if (name === "deferYears" && Number(value) > 0) updates.earlyYears = 0;
       if (name === "earlyYears" && Number(value) > 0) updates.deferYears = 0;
+
       return { ...prev, ...updates };
     });
   };
@@ -183,23 +330,47 @@ const NationalPensionPage = () => {
     setInputs((prev) => ({ ...prev, excludedPeriods: newPeriods }));
   };
 
+  // [CORE] 계산 실행
   const handleCalculate = () => {
     if (!inputs.birthDate || displayBirth.length !== 8) {
-      alert("생년월일 8자리를 정확히 입력해주세요. (예: 19980105)");
+      alert("생년월일 8자리를 정확히 입력해주세요. (예: 19640501)");
       return;
     }
 
-    const periodData = calculateDetailedPeriod(
-      inputs.birthDate,
-      inputs.startYear,
-      inputs.startMonth,
-      inputs.retireAge,
+    let periodData;
+
+    if (inputMode === "precise") {
+      // [정밀 모드] 현재 나이 계산
+      const now = new Date();
+      periodData = calculateDetailedPeriod(
+        inputs.birthDate,
+        now.getFullYear(),
+        now.getMonth() + 1,
+        inputs.retireAge,
+      );
+    } else {
+      // [간편 모드]
+      periodData = calculateDetailedPeriod(
+        inputs.birthDate,
+        inputs.startYear,
+        inputs.startMonth,
+        inputs.retireAge,
+      );
+    }
+
+    // 2. 연금액 계산
+    const pension = calculateNationalPension(
+      {
+        ...inputs,
+        isPreciseMode: inputMode === "precise",
+      },
+      periodData,
     );
 
-    const pension = calculateNationalPension(inputs, periodData);
-
     if (pension.totalPaidMonths < 120 && pension.totalCreditMonths === 0) {
-      alert("납부 기간이 부족합니다 (최소 10년).");
+      alert(
+        `현재 총 납부 기간이 ${pension.totalPaidMonths}개월입니다. 연금 수령을 위해서는 최소 120개월(10년)을 채워야 합니다.`,
+      );
       return;
     }
 
@@ -220,12 +391,12 @@ const NationalPensionPage = () => {
           ...p,
           isPayback: false,
         })),
+        isPreciseMode: inputMode === "precise",
       };
       const baseResult = calculateNationalPension(noPaybackInputs, periodData);
       monthlyIncrease = pension.monthly - baseResult.monthly;
     }
 
-    // [FIX] 모든 계산값에 || 0 을 추가하여 undefined 에러 방지 (안전장치)
     setResult({
       periodYear: Math.floor(pension.totalPaidMonths / 12) || 0,
       periodMonth: pension.totalPaidMonths % 12 || 0,
@@ -280,20 +451,43 @@ const NationalPensionPage = () => {
           </span>
         </h2>
         <p className="text-slate-500 mt-2 text-sm md:text-base">
-          보험료율 인상(9.5%~13%), 소득대체율 42%, 재직자 감액 완화 등{" "}
-          <strong>2026 연금개혁안</strong>이 완벽 적용된 버전입니다.
+          보험료율 인상(13%), 소득대체율 42% 등 2026년 개혁안이 적용된 전문가용
+          시뮬레이터입니다.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
         <div className="md:col-span-5 space-y-6">
           <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+            {/* 모드 전환 탭 */}
+            <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
+              <button
+                onClick={() => setInputMode("simple")}
+                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${inputMode === "simple" ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+              >
+                간편 계산
+              </button>
+              <button
+                onClick={() => setInputMode("precise")}
+                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all flex items-center justify-center gap-1 ${inputMode === "precise" ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+              >
+                정밀 계산{" "}
+                <CheckCircle
+                  size={14}
+                  className={
+                    inputMode === "precise" ? "text-blue-500" : "text-slate-300"
+                  }
+                />
+              </button>
+            </div>
+
             <h3 className="font-bold text-lg mb-4 text-slate-700 flex items-center gap-2">
-              <Info size={20} className="text-slate-500" /> 필수 정보 입력
+              <Info size={20} className="text-slate-500" />
+              {inputMode === "simple" ? "기본 정보 입력" : "공단 데이터 입력"}
             </h3>
 
             <div className="space-y-6">
-              {/* 생년월일: 8자리 숫자 입력 방식 */}
+              {/* 생년월일 (공통) */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1">
                   <Calendar size={16} /> 생년월일 (8자리)
@@ -317,75 +511,158 @@ const NationalPensionPage = () => {
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-slate-400 mt-1 pl-1">
-                  * 숫자만 입력하세요 (예: 1960년 1월 1일 → 19600101)
-                </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1">
-                  <Briefcase size={16} /> 납부 시작 시기
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    name="startYear"
-                    value={inputs.startYear}
-                    onChange={handleChange}
-                    className="w-24 p-3 border border-slate-300 rounded-lg outline-none text-center focus:ring-2 focus:ring-primary-500 transition-all"
-                    placeholder="2024"
-                  />
-                  <select
-                    name="startMonth"
-                    value={inputs.startMonth}
-                    onChange={handleChange}
-                    className="flex-1 p-3 border border-slate-300 rounded-lg outline-none bg-white focus:ring-2 focus:ring-primary-500 transition-all"
+              {/* [분기] 입력 모드 */}
+              {inputMode === "simple" ? (
+                // === 간편 모드 UI ===
+                <>
+                  {/* [UPDATED] 스크롤 피커 적용 */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1">
+                      <Briefcase size={16} /> 최초 가입 시기 (입사일)
+                    </label>
+                    <DateScrollPicker
+                      year={inputs.startYear}
+                      month={inputs.startMonth}
+                      onChange={(y, m) =>
+                        setInputs((prev) => ({
+                          ...prev,
+                          startYear: y,
+                          startMonth: m,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="h-px bg-slate-100 my-4"></div>
+
+                  <h4 className="font-bold text-sm text-primary-700 mb-3 flex items-center gap-1">
+                    <WonSign size={16} /> 소득 흐름 (만원 단위)
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                        가입 당시 소득 (만원)
+                      </label>
+                      <input
+                        type="number"
+                        name="initialSalary"
+                        value={inputs.initialSalary}
+                        onChange={handleChange}
+                        className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                        현재 월 소득 (만원)
+                      </label>
+                      <input
+                        type="number"
+                        name="monthlyIncome"
+                        value={inputs.monthlyIncome}
+                        onChange={handleChange}
+                        className="w-full p-3 border border-slate-300 rounded-lg outline-none bg-blue-50 border-blue-200 focus:ring-2 focus:ring-blue-500 transition-all"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                // === 정밀 모드 UI ===
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-5">
+                  <a
+                    href="https://www.nps.or.kr/elctcvlcpt/comm/getOHAC0000M5.do?menuId=MN24001035"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-between bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg text-sm font-bold shadow-md transition-all group"
                   >
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                      <option key={m} value={m}>
-                        {m}월
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                    <div className="flex items-center gap-2">
+                      <Search size={16} />
+                      <span>내 가입내역 확인하러 가기</span>
+                    </div>
+                    <ArrowRight
+                      size={16}
+                      className="group-hover:translate-x-1 transition-transform"
+                    />
+                  </a>
 
-              <div className="h-px bg-slate-100 my-4"></div>
+                  <div className="text-xs text-slate-600 bg-white p-3 rounded-lg border border-blue-100 leading-relaxed shadow-sm">
+                    <span className="font-bold text-blue-600">Tip.</span> 위
+                    버튼을 눌러 로그인 후<br />
+                    <strong>[가입내역 조회]</strong> 화면의 숫자를 옮겨
+                    적으세요.
+                  </div>
 
-              {/* 소득 흐름 */}
-              <h4 className="font-bold text-sm text-primary-700 mb-3 flex items-center gap-1">
-                <WonSign size={16} /> 소득 흐름 (만원 단위)
-              </h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">
-                    가입 당시 소득
-                  </label>
-                  <input
-                    type="number"
-                    name="initialSalary"
-                    value={inputs.initialSalary}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">
-                    현재 월 소득
-                  </label>
-                  <input
-                    type="number"
-                    name="monthlyIncome"
-                    value={inputs.monthlyIncome}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-slate-300 rounded-lg outline-none bg-blue-50 border-blue-200 focus:ring-2 focus:ring-blue-500 transition-all"
-                  />
-                </div>
-              </div>
+                  {/* 입력 필드들 */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 mb-1">
+                      ① 총 가입자격 유지기간
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        name="totalPaidMonths"
+                        value={inputs.totalPaidMonths}
+                        onChange={handleChange}
+                        placeholder="예: 120"
+                        className="w-full p-3 pr-12 border border-blue-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg bg-white"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">
+                        개월
+                      </span>
+                    </div>
+                  </div>
 
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 mb-1">
+                      ② B 값 (평균소득)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        name="averageMonthlyIncome"
+                        value={inputs.averageMonthlyIncome}
+                        onChange={handleChange}
+                        placeholder="예: 250"
+                        className="w-full p-3 pr-12 border border-blue-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg bg-white"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">
+                        만원
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1 pl-1">
+                      * 조회 화면 하단의 'B값' 또는 평균소득 입력
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-800 mb-1">
+                      ③ 현재 월 소득 (세전)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        name="monthlyIncome"
+                        value={inputs.monthlyIncome}
+                        onChange={handleChange}
+                        placeholder="예: 300"
+                        className="w-full p-3 pr-12 border border-blue-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg bg-white"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">
+                        만원
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1 pl-1">
+                      * 미래 연금 적립 예측을 위해 필요합니다.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 공통 입력 필드 (상승률, 납부예외, 부양가족 등 - 기존 동일) */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-1">
-                  <BarChart2 size={16} /> 연평균 임금상승률
+                  <BarChart2 size={16} /> 향후 소득 상승률 (연평균)
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -404,13 +681,11 @@ const NationalPensionPage = () => {
                 </div>
               </div>
 
-              <div className="h-px bg-slate-100 my-4"></div>
-
-              {/* 납부 예외 */}
+              {/* 납부 예외 (미래 계획용으로 유지) */}
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-sm font-bold text-slate-700 flex items-center gap-1">
-                    <AlertCircle size={16} /> 납부 예외 / 추납
+                    <AlertCircle size={16} /> (미래) 납부 예외 / 추납
                   </label>
                   <button
                     onClick={addExcludedPeriod}
@@ -419,6 +694,7 @@ const NationalPensionPage = () => {
                     <PlusCircle size={14} /> 구간 추가
                   </button>
                 </div>
+                {/* ... (기존 excludedPeriods 매핑 코드 그대로 유지) ... */}
                 <div className="space-y-3">
                   {inputs.excludedPeriods.map((period, idx) => (
                     <div
@@ -522,9 +798,8 @@ const NationalPensionPage = () => {
                   ))}
                   {inputs.excludedPeriods.length === 0 && (
                     <div className="text-xs text-slate-400 p-4 bg-slate-50 rounded-lg border border-dashed border-slate-200 text-center flex flex-col items-center gap-1">
-                      <span>경력단절 기간이 있다면 추가하세요.</span>
-                      <span className="text-[10px] opacity-70">
-                        (추납 효율을 분석해드립니다)
+                      <span>
+                        (선택) 앞으로 일을 쉴 계획이 있다면 추가하세요.
                       </span>
                     </div>
                   )}
@@ -533,13 +808,13 @@ const NationalPensionPage = () => {
 
               <div className="h-px bg-slate-100 my-4"></div>
 
-              {/* 부양가족 연금 가산 */}
+              {/* 부양가족 (기존 코드 유지) */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-1">
                   <Users size={16} /> 부양가족 (연금 가산)
                 </label>
                 <div className="flex flex-col gap-3">
-                  {/* 배우자 카드 */}
+                  {/* 배우자 */}
                   <div
                     className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
                       inputs.depSpouse
@@ -587,7 +862,7 @@ const NationalPensionPage = () => {
                     </span>
                   </div>
 
-                  {/* 자녀 & 부모 Stepper UI */}
+                  {/* 자녀 & 부모 */}
                   <div className="grid grid-cols-2 gap-3">
                     {/* 자녀 */}
                     <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col items-center justify-center gap-2">
@@ -613,7 +888,7 @@ const NationalPensionPage = () => {
                           onClick={() => handleStepper("depChildren", 1)}
                           className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm border border-slate-200 text-slate-600 hover:bg-slate-100 active:scale-95 transition-all"
                         >
-                          <Plus size={14} />
+                          <Plus size={16} />
                         </button>
                       </div>
                     </div>
@@ -652,13 +927,13 @@ const NationalPensionPage = () => {
 
               <div className="h-px bg-slate-100 my-4"></div>
 
-              {/* [NEW] 크레딧 */}
+              {/* 크레딧 (기존 코드 유지) */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-1">
                   <Medal size={16} /> 2026 크레딧 혜택
                 </label>
                 <div className="flex flex-col gap-3">
-                  {/* 군복무 카드 */}
+                  {/* 군복무 */}
                   <div
                     className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
                       inputs.hasMilitary
@@ -706,7 +981,7 @@ const NationalPensionPage = () => {
                     </span>
                   </div>
 
-                  {/* 출산 크레딧 Stepper */}
+                  {/* 출산 크레딧 */}
                   <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center">
@@ -744,7 +1019,7 @@ const NationalPensionPage = () => {
 
               <div className="h-px bg-slate-100 my-4"></div>
 
-              {/* [FIXED] 재직자 감액 입력란 */}
+              {/* 재직자 감액 */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1">
                   <Activity size={16} /> 은퇴 후 월 소득 (만원 단위)
@@ -843,7 +1118,9 @@ const NationalPensionPage = () => {
                 onClick={handleCalculate}
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-slate-200 mt-2 text-lg active:scale-[0.98]"
               >
-                정밀 시뮬레이션 시작
+                {inputMode === "precise"
+                  ? "정밀 데이터로 분석하기"
+                  : "간편 계산 시작"}
               </button>
             </div>
           </div>
@@ -855,10 +1132,14 @@ const NationalPensionPage = () => {
           />
         </div>
 
-        {/* Right Side: Result Display */}
+        {/* Right Side: Result Display (기존 동일) */}
         <div className="md:col-span-7">
+          {/* ... (기존 결과 표시 로직 유지) ... */}
           {result ? (
             <div className="space-y-6 animate-fade-in-up">
+              {/* ... */}
+              {/* (결과 화면 생략 - 이전과 동일) */}
+              {/* ... */}
               <div className="bg-white p-6 rounded-2xl shadow-lg border border-primary-100">
                 <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
                   <div>
@@ -875,7 +1156,7 @@ const NationalPensionPage = () => {
                       </span>
                       <span className="text-slate-600 font-bold">원</span>
                     </div>
-                    {/* 배지들 */}
+                    {/* ... (배지들) ... */}
                     <div className="flex flex-wrap gap-2 mt-3">
                       {inputs.deferYears > 0 && (
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-md font-bold border border-blue-200">
@@ -905,7 +1186,7 @@ const NationalPensionPage = () => {
                     {showTax ? "세후 (실수령)" : "세전 (총액)"}
                   </button>
                 </div>
-
+                {/* ... (그래프 및 상세정보) ... */}
                 <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl mb-4 text-sm border border-slate-100">
                   <div>
                     <p className="text-xs text-slate-500 mb-1">
@@ -997,51 +1278,11 @@ const NationalPensionPage = () => {
                       maintainAspectRatio: false,
                       plugins: { legend: { display: false } },
                       scales: {
-                        y: {
-                          beginAtZero: true,
-                          grid: { color: "#f1f5f9" },
-                        },
-                        x: {
-                          grid: { display: false },
-                        },
+                        y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
+                        x: { grid: { display: false } },
                       },
                     }}
                   />
-                </div>
-              </div>
-
-              <div className="bg-slate-900 text-white p-5 rounded-xl shadow-lg flex gap-4 items-start">
-                <TrendingUp
-                  className="text-green-400 shrink-0 mt-1"
-                  size={24}
-                />
-                <div>
-                  <h4 className="font-bold text-lg mb-1">
-                    Top Tier 분석 리포트
-                  </h4>
-                  <p className="text-sm text-slate-300 leading-relaxed">
-                    2026년 연금개혁안(보험료 인상, 소득대체율 42% 상향)이
-                    적용되었습니다.
-                    <br />
-                    <br />
-                    {result.earningsCutAmount > 0 ? (
-                      <span>
-                        ⚠️ 은퇴 후 소득(약{" "}
-                        {(inputs.postRetireIncome || 0).toLocaleString()}
-                        만원)으로 인해 재직자 감액이 발생하고 있습니다.{" "}
-                        <span className="text-yellow-400 font-bold underline cursor-pointer">
-                          연기연금
-                        </span>{" "}
-                        신청을 통해 감액을 피하고 연금액을 늘리는 것을
-                        추천합니다.
-                      </span>
-                    ) : (
-                      <span>
-                        ✅ 재직자 감액 기준(509만원) 미만이므로 일하셔도 연금이
-                        깎이지 않습니다. 소득 활동을 계속하시는 것이 유리합니다.
-                      </span>
-                    )}
-                  </p>
                 </div>
               </div>
             </div>

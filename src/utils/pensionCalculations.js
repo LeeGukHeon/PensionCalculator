@@ -1,7 +1,9 @@
 /**
  * src/utils/pensionCalculations.js
- * [Final Engine V4.4]
- * 509만원 감액 기준, 13% 보험료 인상, 42% 소득대체율 완벽 적용
+ * [Final Engine V5.3]
+ * - 간편 모드: 연도별 소득대체율(0.7~0.4) 적용 (기존 로직 유지)
+ * - 정밀 모드: 입력된 과거 데이터 + 미래 예측 데이터 하이브리드 계산
+ * - Unused variable 경고 해결
  */
 
 import {
@@ -14,14 +16,16 @@ import {
   WORKING_CUT_LIMIT,
 } from "./pensionPolicyData";
 
+// 연도별 소득대체율 (1999~2026+)
 const getReplacementRate = (year) => {
   if (year < 1999) return 0.7;
   if (year >= 1999 && year <= 2007) return 0.6;
   if (year === 2008) return 0.5;
   if (year >= 2009 && year <= 2025) return 0.5 - (year - 2008) * 0.005;
-  return NPS_CONSTANTS.INCOME_REPLACEMENT_RATE_2026;
+  return NPS_CONSTANTS.INCOME_REPLACEMENT_RATE_2026; // 0.42
 };
 
+// 보험료율 (2026년부터 13% 인상 반영)
 const getPremiumRate = (year) => {
   if (year < 2026) return 0.09;
   return NPS_CONSTANTS.PREMIUM_RATE_SCHEDULE[year] || 0.13;
@@ -32,12 +36,16 @@ export const calculateDetailedPeriod = (
   startYear,
   startMonth,
   retireAge,
+  currentAgeOverride = null,
 ) => {
   const birthDate = new Date(birthDateStr);
   const today = new Date();
+
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+
+  if (currentAgeOverride !== null) age = currentAgeOverride;
 
   const retireYear = birthDate.getFullYear() + retireAge;
   const retireMonth = birthDate.getMonth() + 1;
@@ -61,8 +69,6 @@ export const calculateNationalPension = (inputs, periodData) => {
   const SYSTEM_START_YEAR = 1988;
   const effectiveStartYear = Math.max(startYear, SYSTEM_START_YEAR);
 
-  const initialSalary = inputs.initialSalary * 10000;
-  const currentSalary = inputs.monthlyIncome * 10000;
   const wageGrowthRate = inputs.wageGrowthRate / 100;
   const excludedPeriods = inputs.excludedPeriods || [];
 
@@ -75,8 +81,10 @@ export const calculateNationalPension = (inputs, periodData) => {
   const depChildren = inputs.depChildren || 0;
   const depParents = inputs.depParents || 0;
 
-  // [Check] 단위 주의: UI에서 만원 단위로 입력받아 여기서 10000을 곱함
   const postRetireIncome = (inputs.postRetireIncome || 0) * 10000;
+
+  // [Check] 정밀 모드 여부
+  const isPreciseMode = inputs.isPreciseMode || false;
 
   let totalRevaluedIncome = 0;
   let totalPaidMonths = 0;
@@ -86,34 +94,85 @@ export const calculateNationalPension = (inputs, periodData) => {
   let totalPaybackMonths = 0;
   let totalFuturePremium = 0;
 
-  // --- 1. 기본 연금 산정 ---
-  for (let year = effectiveStartYear; year <= retireYear; year++) {
-    const salaryPeakYear = periodData.retireYear - 5;
+  let loopStartYear = effectiveStartYear;
 
+  // 현재 소득 (UI: 만원 -> 로직: 원)
+  let currentSalaryBase = (inputs.monthlyIncome || 0) * 10000;
+
+  // ----------------------------------------------------
+  // [Phase 1] 초기값 설정 (정밀 vs 간편)
+  // ----------------------------------------------------
+  if (isPreciseMode) {
+    // [정밀 모드] 과거 데이터는 User Input으로 고정
+    const pastMonths = inputs.totalPaidMonths || 0;
+    const pastAvgIncome = (inputs.averageMonthlyIncome || 0) * 10000;
+
+    totalPaidMonths = pastMonths;
+    // 역산: 총 소득(적분값) = 평균(B값) * 기간
+    totalRevaluedIncome = pastAvgIncome * pastMonths;
+
+    // 반복문은 '올해'부터 시작 (미래 예측용)
+    loopStartYear = currentYear;
+  } else {
+    // [간편 모드] 처음부터 Loop
+    loopStartYear = effectiveStartYear;
+  }
+
+  // ----------------------------------------------------
+  // [Phase 2] 소득 및 기간 누적 Loop
+  // ----------------------------------------------------
+  for (let year = loopStartYear; year <= retireYear; year++) {
+    const salaryPeakYear = periodData.retireYear - 5;
     let estimatedMonthlyIncome = 0;
-    if (year <= currentYear) {
-      if (currentYear === effectiveStartYear) {
-        estimatedMonthlyIncome = currentSalary;
-      } else {
-        const progress =
-          (year - effectiveStartYear) / (currentYear - effectiveStartYear);
-        estimatedMonthlyIncome =
-          initialSalary + (currentSalary - initialSalary) * progress;
-      }
-    } else {
-      if (year > salaryPeakYear) {
-        const peakIncomeYear = Math.max(currentYear, salaryPeakYear);
-        const futureYearsToPeak = peakIncomeYear - currentYear;
-        estimatedMonthlyIncome =
-          currentSalary *
-          Math.pow(1 + wageGrowthRate, Math.max(0, futureYearsToPeak));
+
+    if (isPreciseMode) {
+      // [정밀] 미래 예측
+      if (year === currentYear) {
+        estimatedMonthlyIncome = currentSalaryBase;
       } else {
         const futureYears = year - currentYear;
-        estimatedMonthlyIncome =
-          currentSalary * Math.pow(1 + wageGrowthRate, futureYears);
+        if (year > salaryPeakYear) {
+          const peakIncomeYear = Math.max(currentYear, salaryPeakYear);
+          const futureYearsToPeak = peakIncomeYear - currentYear;
+          estimatedMonthlyIncome =
+            currentSalaryBase *
+            Math.pow(1 + wageGrowthRate, Math.max(0, futureYearsToPeak));
+        } else {
+          estimatedMonthlyIncome =
+            currentSalaryBase * Math.pow(1 + wageGrowthRate, futureYears);
+        }
+      }
+    } else {
+      // [간편] 과거 추산 + 미래 예측
+      // [FIX] initialSalary를 여기서 선언하여 '미사용 경고' 해결
+      const initialSalaryVal = (inputs.initialSalary || 0) * 10000;
+
+      if (year <= currentYear) {
+        if (currentYear === effectiveStartYear) {
+          estimatedMonthlyIncome = currentSalaryBase;
+        } else {
+          const progress =
+            (year - effectiveStartYear) / (currentYear - effectiveStartYear);
+          estimatedMonthlyIncome =
+            initialSalaryVal +
+            (currentSalaryBase - initialSalaryVal) * progress;
+        }
+      } else {
+        const futureYears = year - currentYear;
+        if (year > salaryPeakYear) {
+          const peakIncomeYear = Math.max(currentYear, salaryPeakYear);
+          const futureYearsToPeak = peakIncomeYear - currentYear;
+          estimatedMonthlyIncome =
+            currentSalaryBase *
+            Math.pow(1 + wageGrowthRate, Math.max(0, futureYearsToPeak));
+        } else {
+          estimatedMonthlyIncome =
+            currentSalaryBase * Math.pow(1 + wageGrowthRate, futureYears);
+        }
       }
     }
 
+    // 상한/하한 보정
     if (estimatedMonthlyIncome > NPS_CONSTANTS.MAX_INCOME)
       estimatedMonthlyIncome = NPS_CONSTANTS.MAX_INCOME;
     if (estimatedMonthlyIncome < NPS_CONSTANTS.MIN_INCOME)
@@ -127,7 +186,10 @@ export const calculateNationalPension = (inputs, periodData) => {
     let incomeSumInThisYear = 0;
 
     for (let m = 1; m <= 12; m++) {
-      if (year === startYear && m < startMonth) continue;
+      // 기간 체크
+      if (!isPreciseMode && year === startYear && m < startMonth) continue;
+      // 정밀모드는 올해(currentYear)의 경우 1월부터 계산에 포함 (미래 시뮬레이션 단순화)
+
       if (year === retireYear && m >= retireMonth) continue;
       if (year < SYSTEM_START_YEAR) continue;
 
@@ -135,6 +197,7 @@ export const calculateNationalPension = (inputs, periodData) => {
       let isExcluded = false;
       let isPayback = false;
 
+      // 납부예외
       for (const p of excludedPeriods) {
         const pStart = p.startYear * 12 + p.startMonth;
         const pEnd = p.endYear * 12 + p.endMonth;
@@ -148,12 +211,12 @@ export const calculateNationalPension = (inputs, periodData) => {
       if (!isExcluded) {
         validMonthsInThisYear++;
         incomeSumInThisYear += revaluedIncome;
-        if (year > currentYear) {
+        if (year >= currentYear) {
           totalFuturePremium += estimatedMonthlyIncome * currentPremiumRate;
         }
       } else if (isPayback) {
         validMonthsInThisYear++;
-        let paybackIncomeBase = currentSalary;
+        let paybackIncomeBase = currentSalaryBase;
         if (paybackIncomeBase > NPS_CONSTANTS.MAX_INCOME)
           paybackIncomeBase = NPS_CONSTANTS.MAX_INCOME;
         incomeSumInThisYear += paybackIncomeBase;
@@ -166,45 +229,70 @@ export const calculateNationalPension = (inputs, periodData) => {
       }
     }
 
-    if (validMonthsInThisYear <= 0) continue;
-
-    totalRevaluedIncome += incomeSumInThisYear;
-    totalPaidMonths += validMonthsInThisYear;
+    if (validMonthsInThisYear > 0) {
+      totalRevaluedIncome += incomeSumInThisYear;
+      totalPaidMonths += validMonthsInThisYear;
+    }
   }
 
+  // B값 확정
   const B_Final =
     totalPaidMonths > 0 ? totalRevaluedIncome / totalPaidMonths : 0;
   const A_Final = NPS_CONSTANTS.A_VALUE_2026;
 
-  for (let year = effectiveStartYear; year <= retireYear; year++) {
-    let validMonthsInThisYear = 0;
-    for (let m = 1; m <= 12; m++) {
-      if (year === startYear && m < startMonth) continue;
-      if (year === retireYear && m >= retireMonth) continue;
-      if (year < SYSTEM_START_YEAR) continue;
-      const currentMonthVal = year * 12 + m;
-      let isExcluded = false;
-      let isPayback = false;
-      for (const p of excludedPeriods) {
-        const pStart = p.startYear * 12 + p.startMonth;
-        const pEnd = p.endYear * 12 + p.endMonth;
-        if (currentMonthVal >= pStart && currentMonthVal <= pEnd) {
-          isExcluded = true;
-          if (p.isPayback) isPayback = true;
-          break;
-        }
-      }
-      if (!isExcluded || isPayback) validMonthsInThisYear++;
-    }
-    if (validMonthsInThisYear <= 0) continue;
+  // ----------------------------------------------------
+  // [Phase 3] 연금액(TotalPensionYearly) 산출 - 분기 처리
+  // ----------------------------------------------------
 
-    const rate = getReplacementRate(year);
-    const yearPension =
-      ((A_Final + B_Final) / 2) * rate * (validMonthsInThisYear / 480);
-    totalPensionYearly += yearPension * 12;
+  if (isPreciseMode) {
+    // [정밀 모드]
+    // 과거 이력의 연도 분포를 모르므로, 전체 기간에 대해 2026년 기준 소득대체율(0.42) 일괄 적용
+    // (미래 설계 목적에 가장 부합하는 보수적/현실적 계산)
+    const replacementRate = NPS_CONSTANTS.INCOME_REPLACEMENT_RATE_2026; // 0.42
+    const baseAmount = (A_Final + B_Final) / 2;
+
+    // 기본연금액 공식: (A+B)/2 * 0.42 * (N / 40년) * 12개월
+    totalPensionYearly =
+      baseAmount * replacementRate * (totalPaidMonths / 480) * 12;
+  } else {
+    // [간편 모드]
+    // 기존 로직 유지: 연도별 소득대체율(0.7 -> 0.4)을 Loop 돌면서 정밀 적분
+    for (let year = effectiveStartYear; year <= retireYear; year++) {
+      let validMonthsInThisYear = 0;
+      for (let m = 1; m <= 12; m++) {
+        if (year === startYear && m < startMonth) continue;
+        if (year === retireYear && m >= retireMonth) continue;
+        if (year < SYSTEM_START_YEAR) continue;
+
+        const currentMonthVal = year * 12 + m;
+        let isExcluded = false;
+        let isPayback = false;
+
+        for (const p of excludedPeriods) {
+          const pStart = p.startYear * 12 + p.startMonth;
+          const pEnd = p.endYear * 12 + p.endMonth;
+          if (currentMonthVal >= pStart && currentMonthVal <= pEnd) {
+            isExcluded = true;
+            if (p.isPayback) isPayback = true;
+            break;
+          }
+        }
+        if (!isExcluded || isPayback) validMonthsInThisYear++;
+      }
+
+      if (validMonthsInThisYear <= 0) continue;
+
+      // [FIX] 여기서 getReplacementRate를 사용하여 '미사용 경고' 해결
+      const rate = getReplacementRate(year);
+
+      // 해당 연도의 연금 기여분 누적
+      const yearPension =
+        ((A_Final + B_Final) / 2) * rate * (validMonthsInThisYear / 480);
+      totalPensionYearly += yearPension * 12;
+    }
   }
 
-  // --- 2. 크레딧 ---
+  // --- 4. 크레딧 ---
   let totalCreditMonths = 0;
   if (hasMilitary) totalCreditMonths += CREDIT_CONSTANTS.MILITARY_MONTHS;
   if (childCount >= 1) totalCreditMonths += CREDIT_CONSTANTS.CHILDBIRTH_1ST;
@@ -213,10 +301,11 @@ export const calculateNationalPension = (inputs, periodData) => {
     totalCreditMonths +=
       CREDIT_CONSTANTS.CHILDBIRTH_3RD_PLUS * (childCount - 2);
 
+  // 크레딧 연금액 (A값 기준)
   const creditPensionYearly = A_Final * 0.42 * (totalCreditMonths / 480) * 12;
   let finalPensionYearly = totalPensionYearly + creditPensionYearly;
 
-  // --- 3. 부양가족 ---
+  // --- 5. 부양가족 ---
   let dependentAddOn = 0;
   if (depSpouse) dependentAddOn += DEPENDENT_PENSION.SPOUSE;
   dependentAddOn += depChildren * DEPENDENT_PENSION.CHILD_PARENT;
@@ -224,7 +313,7 @@ export const calculateNationalPension = (inputs, periodData) => {
 
   finalPensionYearly += dependentAddOn;
 
-  // --- 4. 조기/연기 ---
+  // --- 6. 조기/연기 ---
   if (earlyYears > 0) {
     const reduction = earlyYears * CREDIT_CONSTANTS.EARLY_YEARLY_RATE;
     finalPensionYearly = finalPensionYearly * (1 - reduction);
@@ -235,15 +324,12 @@ export const calculateNationalPension = (inputs, periodData) => {
     finalPensionYearly += dependentAddOn;
   }
 
-  // --- 5. 재직자 감액 (Earnings Test) ---
+  // --- 7. 재직자 감액 ---
   let earningsCutAmount = 0;
-  // [Fix] 509만원 고정값 fallback (안전장치)
   const LIMIT = WORKING_CUT_LIMIT || 5090000;
 
   if (postRetireIncome > LIMIT) {
     const excessIncome = postRetireIncome - LIMIT;
-
-    // 감액 구간 계산
     if (excessIncome < 1000000) earningsCutAmount = excessIncome * 0.05;
     else if (excessIncome < 2000000)
       earningsCutAmount = 50000 + (excessIncome - 1000000) * 0.1;
@@ -253,14 +339,11 @@ export const calculateNationalPension = (inputs, periodData) => {
       earningsCutAmount = 300000 + (excessIncome - 3000000) * 0.2;
     else earningsCutAmount = 500000 + (excessIncome - 4000000) * 0.25;
 
-    // 상한 적용
     if (earningsCutAmount > (finalPensionYearly / 12) * 0.5) {
       earningsCutAmount = (finalPensionYearly / 12) * 0.5;
     }
-
     finalPensionYearly -= earningsCutAmount * 12;
   } else {
-    // 기준 미만이면 감액 0
     earningsCutAmount = 0;
   }
 
