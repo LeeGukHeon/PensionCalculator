@@ -29,7 +29,6 @@ import {
   Briefcase,
   Sunset,
 } from "lucide-react";
-import AdSense from "../components/AdSense";
 // [Custom Icon] 원화 아이콘
 const WonSign = ({ size = 16, className = "" }) => (
   <svg
@@ -616,13 +615,6 @@ const TargetPensionPage = () => {
               </button>
             </div>
           </div>
-          <div className="bg-slate-100 rounded-lg h-24 flex items-center justify-center text-slate-400 text-sm border-2 border-dashed border-slate-200">
-            <AdSense
-              slot="1430553892"
-              label="Main Top Banner"
-              style={{ marginBottom: "3rem" }}
-            />
-          </div>
         </div>
 
         {/* Right Column: Results */}
@@ -861,11 +853,6 @@ const TargetPensionPage = () => {
               </p>
             </div>
           )}
-          <AdSense
-            slot="2372100479"
-            label="Main Top Banner"
-            style={{ marginBottom: "3rem" }}
-          />
         </div>
       </div>
     </div>

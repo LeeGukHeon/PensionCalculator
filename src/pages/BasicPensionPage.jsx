@@ -26,7 +26,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-import AdSense from "../components/AdSense";
 
 // [Component] 원화 아이콘
 const WonSign = ({ size = 16, className = "" }) => (
@@ -487,12 +486,6 @@ const BasicPensionPage = () => {
               </button>
             </div>
           </div>
-
-          <AdSense
-            slot="3924893287"
-            label="Main Top Banner"
-            style={{ marginBottom: "3rem" }}
-          />
         </div>
 
         {/* Right: Result Display */}
@@ -758,13 +751,6 @@ const BasicPensionPage = () => {
               </p>
             </div>
           )}
-          <div className="mt-6 bg-slate-100 rounded-lg h-32 flex items-center justify-center text-slate-400 text-sm border-2 border-dashed border-slate-200">
-            <AdSense
-              slot="5561370591"
-              label="Main Top Banner"
-              style={{ marginBottom: "3rem" }}
-            />
-          </div>
         </div>
       </div>
     </div>

@@ -39,7 +39,6 @@ import {
   ArrowRight,
   ChevronDown,
 } from "lucide-react";
-import AdSense from "../components/AdSense";
 
 // [Custom Icon] 원화 아이콘
 const WonSign = ({ size = 16, className = "" }) => (
@@ -1124,12 +1123,6 @@ const NationalPensionPage = () => {
               </button>
             </div>
           </div>
-
-          <AdSense
-            slot="3685182143"
-            label="Main Top Banner"
-            style={{ marginBottom: "3rem" }}
-          />
         </div>
 
         {/* Right Side: Result Display (기존 동일) */}
@@ -1296,11 +1289,6 @@ const NationalPensionPage = () => {
               </p>
             </div>
           )}
-          <AdSense
-            slot="2743635560"
-            label="Main Top Banner"
-            style={{ marginBottom: "3rem" }}
-          />
         </div>
       </div>
     </div>
