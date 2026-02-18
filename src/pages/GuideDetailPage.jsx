@@ -1,14 +1,26 @@
 import React, { useEffect } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm"; // 플러그인 추가
+import remarkGfm from "remark-gfm";
 import { GUIDE_POSTS } from "../utils/guideData";
 import { ChevronLeft, ShieldCheck, Info, Calculator } from "lucide-react";
+import useMarkdownFile from "../hooks/useMarkdownFile";
+import useDocumentMeta from "../hooks/useDocumentMeta";
+import { SITE_URL } from "../constants/site";
 
 const GuideDetailPage = () => {
   const { id } = useParams();
   const location = useLocation();
-  const post = GUIDE_POSTS.find((p) => p.id === parseInt(id));
+  const post = GUIDE_POSTS.find((entry) => entry.id === Number.parseInt(id, 10));
+  const { content, loading, error } = useMarkdownFile(
+    post ? `/content/guides/${post.slug}.md` : null,
+  );
+
+  useDocumentMeta({
+    title: post ? `${post.title} | 연금 가이드` : "연금 가이드 | 연금계산기",
+    description: post?.description,
+    canonical: `${SITE_URL}${window.location.pathname}`,
+  });
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -43,25 +55,27 @@ const GuideDetailPage = () => {
         </p>
       </header>
 
-      {/* 마크다운 본문 - 표 스타일 강화 */}
-      <article
-        className="prose prose-slate max-w-none text-slate-600 
-        /* 문단 및 리스트 행간/간격 */
+      {loading && <p className="text-slate-500">가이드를 불러오는 중입니다...</p>}
+      {error && (
+        <p className="text-red-500">
+          본문을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+        </p>
+      )}
+
+      {!loading && !error && (
+        <article
+          className="prose prose-slate max-w-none text-slate-600
         [&_p]:leading-[1.9] [&_p]:mb-10 [&_li]:leading-[1.9] [&_li]:mb-5
-        /* 표 스타일 강화 */
         [&_table]:w-full [&_table]:border-collapse [&_table]:my-12 [&_table]:border-2 [&_table]:border-slate-900
         [&_th]:border-2 [&_th]:border-slate-900 [&_th]:bg-slate-100 [&_th]:p-4 [&_th]:text-slate-900 [&_th]:font-bold
         [&_td]:border-2 [&_td]:border-slate-900 [&_td]:p-4 [&_td]:bg-white
-        /* 제목 및 가로줄 여백 강화 */
         prose-h2:text-3xl prose-h2:mt-20 prose-h2:mb-10 prose-h2:pb-6 prose-h2:border-b-2 prose-h2:border-slate-200
         prose-h3:text-2xl prose-h3:mt-12 prose-h3:mb-6"
-      >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {post.content}
-        </ReactMarkdown>
-      </article>
+        >
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        </article>
+      )}
 
-      {/* Disclaimer */}
       <div className="mt-16 p-6 bg-amber-50 rounded-2xl border border-amber-100 shadow-sm">
         <h5 className="text-amber-800 font-bold text-base mb-3 flex items-center gap-2">
           <Info size={18} /> 유의사항 (Disclaimer)
@@ -75,7 +89,6 @@ const GuideDetailPage = () => {
         </p>
       </div>
 
-      {/* 하단 CTA */}
       <div className="mt-20 p-10 bg-slate-900 rounded-[2rem] text-center text-white shadow-2xl shadow-blue-900/10">
         <Calculator
           size={48}
